@@ -157,34 +157,41 @@ export default function WeatherSearch({ onGradientChange }) {
       const googleRes = await fetch(
         `/api/reverseGeocode?lat=${loc.lat}&lon=${loc.lon}`
       );
-      const googleData = await googleRes.json();
 
-      if (googleData.results && googleData.results.length > 0) {
-        const components = googleData.results[0].address_components;
+      if (!googleRes.ok) {
+        console.warn("Geocoding service unavailable, using coordinates only");
+        // Keep cityName, stateName, etc. as empty strings - will fall back to coordinates
+      } else {
+        const googleData = await googleRes.json();
 
-        const cityComponent =
-          components.find(c => c.types.includes("postal_town")) ||
-          components.find(c => c.types.includes("sublocality_level_1")) ||
-          components.find(c => c.types.includes("locality")) ||
-          components.find(c => c.types.includes("neighborhood"));
+        if (googleData.results && googleData.results.length > 0) {
+          const components = googleData.results[0].address_components;
 
-        const stateComponent = components.find(c =>
-          c.types.includes("administrative_area_level_1")
-        );
-        const countryComponent = components.find(c =>
-          c.types.includes("country")
-        );
-        const zipComponent = components.find(c =>
-          c.types.includes("postal_code")
-        );
+          const cityComponent =
+            components.find(c => c.types.includes("postal_town")) ||
+            components.find(c => c.types.includes("sublocality_level_1")) ||
+            components.find(c => c.types.includes("locality")) ||
+            components.find(c => c.types.includes("neighborhood"));
 
-        cityName = cityComponent?.long_name || "";
-        stateName = stateComponent?.short_name || "";
-        countryName = countryComponent?.short_name || "US";
-        zip = zipComponent?.long_name || "";
+          const stateComponent = components.find(c =>
+            c.types.includes("administrative_area_level_1")
+          );
+          const countryComponent = components.find(c =>
+            c.types.includes("country")
+          );
+          const zipComponent = components.find(c =>
+            c.types.includes("postal_code")
+          );
+
+          cityName = cityComponent?.long_name || "";
+          stateName = stateComponent?.short_name || "";
+          countryName = countryComponent?.short_name || "US";
+          zip = zipComponent?.long_name || "";
+        }
       }
     } catch (error) {
       console.error("Google reverse geocoding failed:", error);
+      // Keep cityName, stateName, etc. as empty strings - will fall back to coordinates
     }
 
     if (!inputFocused) {
@@ -311,13 +318,26 @@ export default function WeatherSearch({ onGradientChange }) {
             <span className="ml-2 [font-family:var(--font-fjord-one)] text-white text-base md:text-2xl"><a href="https://www.alissa.dev">alissa.dev</a><span className="text-[#5ce1e6] [font-family:var(--font-dancing-script)] text-xl md:text-3xl font-bold border-l border-l-white/35 ps-2 ms-2">weather</span></span>
           </div> */}
 
-          <div className="flex items-center gap-2 md:px-4 text-white/80 hover:text-white">
-            <span
-              onClick={toggleUnits}
-              className="text-md md:text-xl font-normal cursor-pointer select-none transition"
-            >
-              {units === "imperial" ? "°F" : "°C"}
-            </span>
+          <div className="flex items-center gap-2 md:px-4">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm ${units === "imperial" ? "text-white font-bold" : "text-white/60"}`}>°F</span>
+              <button
+                onClick={toggleUnits}
+                className="relative inline-flex h-5 w-8 items-center rounded-full transition-colors"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.4)"
+                }}
+                aria-label="Toggle temperature units"
+              >
+                <span
+                  className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                  style={{
+                    transform: units === "imperial" ? "translateX(2px)" : "translateX(14px)"
+                  }}
+                />
+              </button>
+              <span className={`text-sm ${units === "metric" ? "text-white font-bold" : "text-white/60"}`}>°C</span>
+            </div>
           </div>
         </div>
       </header>
@@ -326,7 +346,7 @@ export default function WeatherSearch({ onGradientChange }) {
         <div className="container w-full flex flex-col mx-auto">
           <div className="w-full text-center">
             <h2 className="text-white text-2xl md:text-3xl tracking-tight font-light mb-3">
-              {weather.city && weather.state ? (
+              {weather.city ? (
                 <>
                   {weather.city}
                   {weather.state ? `, ${stateLookup[weather.state.toLowerCase()] || weather.state}` : ""}
@@ -334,8 +354,10 @@ export default function WeatherSearch({ onGradientChange }) {
                     ? `, ${countryLookup[weather.country] || weather.country}`
                     : ""}
                 </>
+              ) : weather.zip ? (
+                `ZIP ${weather.zip}`
               ) : (
-                `ZIP ${weather.zip || ""}`
+                `${weather.lat?.toFixed(4)}, ${weather.lon?.toFixed(4)}`
               )}
               {localTime && (
                 <span className="text-white/60 font-normal text-base block">
@@ -527,7 +549,10 @@ export default function WeatherSearch({ onGradientChange }) {
                     <span className="leading-6">Visibility:</span>
                   </div>
                   <span className="leading-6 flex items-center whitespace-nowrap">
-                    {weather.visibility / 1000} km
+                    {units === "imperial"
+                      ? `${(weather.visibility * 0.000621371).toFixed(1)} mi`
+                      : `${(weather.visibility / 1000).toFixed(1)} km`
+                    }
                   </span>
                 </li>
               </ul>

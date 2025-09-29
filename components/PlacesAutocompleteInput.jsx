@@ -77,7 +77,7 @@ export default function PlacesAutocompleteInput({
                     onClick={() => setOpen((prev) => !prev)}
                     className="absolute left-0 top-1/2 -translate-y-1/2 grid place-items-center w-10 h-10 text-white/80 hover:text-white cursor-pointer"
                 >
-                    <LocationIcon className="w-6 h-6 md:w-8 md:h-8" />
+                    <LocationIcon className="w-7 h-7" />
                 </button>
 
                 <div className="w-full pl-10">

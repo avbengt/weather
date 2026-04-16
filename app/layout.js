@@ -37,7 +37,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${fjordOne.variable} ${dancingScript.variable} antialiased transition-all duration-700 max-h-screen bg-fixed`}>
+      <body className={`${inter.variable} ${fjordOne.variable} ${dancingScript.variable} antialiased transition-all duration-700 bg-fixed`}>
         {children}
       </body>
     </html >

@@ -4,11 +4,9 @@ import { useRef, useState, useEffect } from "react";
 import { getCoordinates } from "@/utils/getCoordinates";
 import { getTimeOfDayGradient } from "@/utils/getTimeOfDayGradient";
 import fetchWeather from "@/utils/fetchWeather";
-import { iconRegistry } from "@/components/iconRegistry";
-import { mapWeatherIcon } from "@/components/iconRegistry";
+import { iconRegistry, mapWeatherIcon } from "@/components/iconRegistry";
 import HeroImage from "./HeroImage";
 import WeatherIcon from "@/components/WeatherIcon";
-import MoonPhase from "@/components/MoonPhase";
 import PlacesAutocompleteInput from "@/components/PlacesAutocompleteInput";
 
 
@@ -30,6 +28,64 @@ const countryLookup = {
   MX: "Mexico", BR: "Brazil", JP: "Japan", CN: "China", IT: "Italy", ES: "Spain",
   SE: "Sweden", NO: "Norway", NZ: "New Zealand"
 };
+
+function degreesToCardinal(deg) {
+  if (deg === undefined || deg === null) return "";
+  const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function getMoonPhaseIcon(moonPhase) {
+  if (moonPhase === 0) return "wi-moon-new";
+  if (moonPhase > 0 && moonPhase < 0.25) {
+    if (moonPhase < 0.04) return "wi-moon-waxing-crescent-1";
+    if (moonPhase < 0.08) return "wi-moon-waxing-crescent-2";
+    if (moonPhase < 0.12) return "wi-moon-waxing-crescent-3";
+    if (moonPhase < 0.16) return "wi-moon-waxing-crescent-4";
+    if (moonPhase < 0.2) return "wi-moon-waxing-crescent-5";
+    return "wi-moon-waxing-crescent-6";
+  }
+  if (moonPhase === 0.25) return "wi-moon-first-quarter";
+  if (moonPhase > 0.25 && moonPhase < 0.5) {
+    if (moonPhase < 0.3) return "wi-moon-waxing-gibbous-1";
+    if (moonPhase < 0.34) return "wi-moon-waxing-gibbous-2";
+    if (moonPhase < 0.38) return "wi-moon-waxing-gibbous-3";
+    if (moonPhase < 0.42) return "wi-moon-waxing-gibbous-4";
+    if (moonPhase < 0.46) return "wi-moon-waxing-gibbous-5";
+    return "wi-moon-waxing-gibbous-6";
+  }
+  if (moonPhase === 0.5) return "wi-moon-full";
+  if (moonPhase > 0.5 && moonPhase < 0.75) {
+    if (moonPhase < 0.54) return "wi-moon-waning-gibbous-1";
+    if (moonPhase < 0.58) return "wi-moon-waning-gibbous-2";
+    if (moonPhase < 0.62) return "wi-moon-waning-gibbous-3";
+    if (moonPhase < 0.66) return "wi-moon-waning-gibbous-4";
+    if (moonPhase < 0.7) return "wi-moon-waning-gibbous-5";
+    return "wi-moon-waning-gibbous-6";
+  }
+  if (moonPhase === 0.75) return "wi-moon-third-quarter";
+  if (moonPhase > 0.75 && moonPhase < 1) {
+    if (moonPhase < 0.8) return "wi-moon-waning-crescent-1";
+    if (moonPhase < 0.84) return "wi-moon-waning-crescent-2";
+    if (moonPhase < 0.88) return "wi-moon-waning-crescent-3";
+    if (moonPhase < 0.92) return "wi-moon-waning-crescent-4";
+    if (moonPhase < 0.96) return "wi-moon-waning-crescent-5";
+    return "wi-moon-waning-crescent-6";
+  }
+  return "wi-moon-new";
+}
+
+function getMoonPhaseLabel(moonPhase) {
+  if (moonPhase === 0) return "New Moon";
+  if (moonPhase > 0 && moonPhase < 0.25) return "Waxing Crescent";
+  if (moonPhase === 0.25) return "First Quarter";
+  if (moonPhase > 0.25 && moonPhase < 0.5) return "Waxing Gibbous";
+  if (moonPhase === 0.5) return "Full Moon";
+  if (moonPhase > 0.5 && moonPhase < 0.75) return "Waning Gibbous";
+  if (moonPhase === 0.75) return "Last Quarter";
+  if (moonPhase > 0.75 && moonPhase <= 1) return "Waning Crescent";
+  return "Unknown";
+}
 
 export default function WeatherSearch({ onGradientChange }) {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -55,21 +111,35 @@ export default function WeatherSearch({ onGradientChange }) {
   const [moonPhase, setMoonPhase] = useState(null);
   const [fiveDayForecast, setFiveDayForecast] = useState([]);
   const [hourlyForecast, setHourlyForecast] = useState([]);
+  const [scrollThumbWidth, setScrollThumbWidth] = useState(20);
+  const [scrollThumbLeft, setScrollThumbLeft] = useState(0);
 
   function formatHour(unix, offset) {
     const localTime = new Date(unix * 1000);
     return localTime.toLocaleTimeString([], { hour: 'numeric', hour12: true });
   }
 
+  function updateScrollIndicator() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    const scrollable = scrollWidth - clientWidth;
+    const thumbWidthPct = Math.max(10, (clientWidth / scrollWidth) * 100);
+    const thumbLeftPct = scrollable > 0 ? (scrollLeft / scrollable) * (100 - thumbWidthPct) : 0;
+    setScrollThumbWidth(thumbWidthPct);
+    setScrollThumbLeft(thumbLeftPct);
+  }
+
   useEffect(() => {
     if (!weather?.current?.dt || !weather?.sunrise || !weather?.sunset) return;
-    const g = getTimeOfDayGradient(weather.current.dt, weather.sunrise, weather.sunset);
+    const g = getTimeOfDayGradient(weather.current.dt, weather.sunrise, weather.sunset, conditionId);
     onGradientChange?.(g);
   }, [
     onGradientChange,
     weather?.current?.dt ?? null,
     weather?.sunrise ?? null,
     weather?.sunset ?? null,
+    conditionId,
   ]);
 
   useEffect(() => {
@@ -106,6 +176,12 @@ export default function WeatherSearch({ onGradientChange }) {
   }, [selectedLocation, weather]);
 
   useEffect(() => {
+    if (hourlyForecast.length > 0) {
+      requestAnimationFrame(updateScrollIndicator);
+    }
+  }, [hourlyForecast]);
+
+  useEffect(() => {
     if (selectedLocation && selectedLocation.lat && selectedLocation.lon) {
       (async () => {
         const result = await fetchWeather(selectedLocation, units);
@@ -128,6 +204,7 @@ export default function WeatherSearch({ onGradientChange }) {
       moonPhase,
       dailyForecast,
       hourlyForecast,
+      timezoneOffset,
     } = result;
 
     if (!current) {
@@ -137,30 +214,35 @@ export default function WeatherSearch({ onGradientChange }) {
     }
 
     const now = current.dt;
-    const localTimeFormatted = new Date(now * 1000).toLocaleTimeString([], {
+    const utcMs = Date.now() + (new Date().getTimezoneOffset() * 60 * 1000);
+    const locationMs = utcMs + (timezoneOffset * 1000);
+    const locationLocalTime = new Date(locationMs);
+    const localTimeFormatted = locationLocalTime.toLocaleTimeString([], {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
-    });
+    }) + " local time";
     setLocalTime(localTimeFormatted);
 
     const sunrise = current?.sunrise || 0;
     const sunset = current?.sunset || 0;
     const isNightTime = now < sunrise || now > sunset;
 
-    let cityName = "";
-    let stateName = "";
-    let countryName = "US";
+    // Start with location data passed from Google Places selection
+    let cityName = loc.city || "";
+    let stateName = loc.state || "";
+    let countryName = loc.country || "US";
     let zip = "";
 
-    try {
-      const googleRes = await fetch(
-        `/api/reverseGeocode?lat=${loc.lat}&lon=${loc.lon}`
-      );
+    // Only do reverse geocoding as fallback if city name is missing
+    if (!cityName) {
+      try {
+        const googleRes = await fetch(
+          `/api/reverseGeocode?lat=${loc.lat}&lon=${loc.lon}`
+        );
 
-      if (!googleRes.ok) {
+        if (!googleRes.ok) {
         console.warn("Geocoding service unavailable, using coordinates only");
-        // Keep cityName, stateName, etc. as empty strings - will fall back to coordinates
       } else {
         const googleData = await googleRes.json();
 
@@ -191,11 +273,13 @@ export default function WeatherSearch({ onGradientChange }) {
       }
     } catch (error) {
       console.error("Google reverse geocoding failed:", error);
-      // Keep cityName, stateName, etc. as empty strings - will fall back to coordinates
+    }
     }
 
     if (!inputFocused) {
-      setInput(`${cityName}${stateName ? `, ${stateLookup[stateName.toLowerCase()] || stateName}` : ""}${countryName !== "US" ? `, ${countryLookup[countryName] || countryName}` : ""}`);
+      const lookupState = stateLookup[stateName.toLowerCase()] || stateName;
+      const isDuplicate = stateName && cityName.toLowerCase() === lookupState.toLowerCase();
+      setInput(`${cityName}${stateName && !isDuplicate ? `, ${lookupState}` : ""}${countryName !== "US" ? `, ${countryLookup[countryName] || countryName}` : ""}`);
     }
 
     setWeather({
@@ -275,335 +359,371 @@ export default function WeatherSearch({ onGradientChange }) {
   };
 
   const hasWeatherData = weather?.temp !== undefined;
-  const HumidityIcon = iconRegistry["wi-humidity"];
-  const PressureIcon = iconRegistry["wi-barometer"];
-  const VisibilityIcon = iconRegistry["wi-visibility"];
-  const WindIcon = iconRegistry["wi-wind"];
-  const DewPointIcon = iconRegistry["wi-dewpoint"];
-  const UVIcon = iconRegistry["wi-uvi"];
+
+  // Icon references
   const SunriseIcon = iconRegistry["wi-sunrise"];
   const SunsetIcon = iconRegistry["wi-sunset"];
-  const HighLowIcon = iconRegistry["wi-thermometer"];
+  const WindIcon = iconRegistry["wi-wind"];
+  const PressureIcon = iconRegistry["wi-barometer"];
+  const VisibilityIcon = iconRegistry["wi-visibility"];
+  const UVIcon = iconRegistry["wi-uvi"];
+
+  // Moon phase derived values
+  const moonPhaseFloat = parseFloat(weather?.moon_phase);
+  const moonIconKey = !isNaN(moonPhaseFloat) ? getMoonPhaseIcon(moonPhaseFloat) : null;
+  const moonLabel = !isNaN(moonPhaseFloat) ? getMoonPhaseLabel(moonPhaseFloat) : "N/A";
+  const MoonIcon = moonIconKey ? iconRegistry[moonIconKey] : null;
+
+  // Temperature range across the week (for daily forecast bar)
+  const weekMin = fiveDayForecast.length > 0 ? Math.min(...fiveDayForecast.map(d => d.temp.min)) : 0;
+  const weekMax = fiveDayForecast.length > 0 ? Math.max(...fiveDayForecast.map(d => d.temp.max)) : 1;
+
+  // Derived location display name (persists from weather state, not cleared with input)
+  const locationDisplay = (() => {
+    if (!weather?.city) {
+      if (weather?.country === "US" && weather?.zip) {
+        return `ZIP ${weather.zip}`;
+      }
+      if (weather?.country && weather.country !== "US") {
+        return countryLookup[weather.country] || weather.country;
+      }
+      return null;
+    }
+
+    const city = weather.city;
+    const stateName = weather.state ? (stateLookup[weather.state.toLowerCase()] || weather.state) : "";
+    const countryName = weather.country && weather.country !== "US" ? (countryLookup[weather.country] || weather.country) : "";
+
+    // Deduplicate: don't show state if it matches city name
+    const isDuplicate = stateName && city.toLowerCase() === stateName.toLowerCase();
+
+    let display = city;
+    if (stateName && !isDuplicate) {
+      display += `, ${stateName}`;
+    }
+    if (countryName) {
+      display += `, ${countryName}`;
+    }
+    return display;
+  })();
 
   return (
     <div className="min-h-dvh w-full">
-      <header className="max-w-[48rem] mx-auto h-[50px] md:h-[76px] py-2 md:py-4 z-1">
-        <div className="flex items-center justify-between h-full relative mx-auto px-4 md:px-0">
+      <div className="max-w-[560px] mx-auto w-full px-5">
 
-          <div className="relative">
-            <PlacesAutocompleteInput
-              value={input}
-              onChange={(val) => setInput(val)}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => setInputFocused(false)}
-              onPlaceSelected={async (place) => {
-                const newLocation = {
-                  city: place.name,
-                  state: place.state,
-                  country: place.country,
-                  lat: place.lat,
-                  lon: place.lon
-                };
+        {/* Top bar */}
+        <header className="pt-4 pb-8">
+          <div className="flex items-center gap-3">
 
-                setSelectedLocation(newLocation);
-                const result = await fetchWeather(newLocation, units);
-                handleWeatherResult(result, newLocation);
-                setInput("");
-              }}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
+            {/* Search pill */}
+            <div className="flex-1 min-w-0">
+              <PlacesAutocompleteInput
+                value={input}
+                onChange={(val) => setInput(val)}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                onPlaceSelected={async (place) => {
+                  const newLocation = {
+                    city: place.name,
+                    state: place.state,
+                    country: place.country,
+                    lat: place.lat,
+                    lon: place.lon
+                  };
+                  setSelectedLocation(newLocation);
+                  const result = await fetchWeather(newLocation, units);
+                  handleWeatherResult(result, newLocation);
+                  setInput("");
+                }}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
 
-          {/* <div className="flex items-center">
-            <span className="ml-2 [font-family:var(--font-fjord-one)] text-white text-base md:text-2xl"><a href="https://www.alissa.dev">alissa.dev</a><span className="text-[#5ce1e6] [font-family:var(--font-dancing-script)] text-xl md:text-3xl font-bold border-l border-l-white/35 ps-2 ms-2">weather</span></span>
-          </div> */}
-
-          <div className="flex items-center gap-2 md:px-4">
-            <div className="flex items-center gap-2">
-              <span className={`text-sm ${units === "imperial" ? "text-white font-bold" : "text-white/60"}`}>°F</span>
+            {/* °F / °C toggle */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className={`text-xs font-medium ${units === "imperial" ? "text-white" : "text-white/40"}`}>°F</span>
               <button
                 onClick={toggleUnits}
                 className="relative inline-flex h-5 w-8 items-center rounded-full transition-colors"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.4)"
-                }}
+                style={{ backgroundColor: "rgba(255,255,255,0.3)" }}
                 aria-label="Toggle temperature units"
               >
                 <span
                   className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                  style={{
-                    transform: units === "imperial" ? "translateX(2px)" : "translateX(14px)"
-                  }}
+                  style={{ transform: units === "imperial" ? "translateX(2px)" : "translateX(14px)" }}
                 />
               </button>
-              <span className={`text-sm ${units === "metric" ? "text-white font-bold" : "text-white/60"}`}>°C</span>
+              <span className={`text-xs font-medium ${units === "metric" ? "text-white" : "text-white/40"}`}>°C</span>
             </div>
-          </div>
-        </div>
-      </header>
 
-      {hasWeatherData && (
-        <div className="container w-full flex flex-col mx-auto">
-          <div className="w-full text-center">
-            <h2 className="text-white text-2xl md:text-3xl tracking-tight font-light mb-3">
-              {weather.city ? (
-                <>
-                  {weather.city}
-                  {weather.state ? `, ${stateLookup[weather.state.toLowerCase()] || weather.state}` : ""}
-                  {weather.country && weather.country !== "US"
-                    ? `, ${countryLookup[weather.country] || weather.country}`
-                    : ""}
-                </>
-              ) : weather.zip ? (
-                `ZIP ${weather.zip}`
-              ) : (
-                `${weather.lat?.toFixed(4)}, ${weather.lon?.toFixed(4)}`
-              )}
-              {localTime && (
-                <span className="text-white/60 font-normal text-base block">
-                  as of {localTime}
-                </span>
-              )}
-            </h2>
           </div>
-          <div className="flex flex-row items-center justify-center gap-2 sm:gap-4 min-h-[150px] my-3">
+        </header>
 
-            <div className="items-center justify-center">
-              <HeroImage
-                conditionId={conditionId}
-                iconCode={weather?.current?.weather?.[0]?.icon}
-                description={weather?.description}
-              />
+        {hasWeatherData && (
+          <div className="flex flex-col text-sm md:text-base">
+
+            {/* Location name */}
+            {locationDisplay && (
+              <h2 className="text-white text-2xl md:text-3xl font-light tracking-tight text-center mb-1">
+                {locationDisplay}
+              </h2>
+            )}
+
+            {/* Timestamp */}
+            {localTime && (
+              <p className="text-white/40 text-xs text-center mb-3">as of {localTime}</p>
+            )}
+
+            {/* Hero section */}
+            <div className="flex items-center justify-center gap-2 sm:gap-4 min-h-[150px] my-2">
+              <div className="flex-shrink-0">
+                <HeroImage
+                  conditionId={conditionId}
+                  iconCode={weather?.current?.weather?.[0]?.icon}
+                  description={weather?.description}
+                />
+              </div>
+              <div className="text-left">
+                <p className="text-white text-8xl md:text-9xl font-thin tracking-tighter leading-none">
+                  {Math.round(weather.temp)}°
+                </p>
+                <p className="text-white/70 text-base mt-1">
+                  Feels like {Math.round(weather.feels_like)}°
+                </p>
+                <p className="text-white/50 text-sm mt-0.5 capitalize">
+                  {description.charAt(0).toUpperCase() + description.slice(1)}
+                </p>
+              </div>
             </div>
-            <div className="">
-              <p className="text-white text-8xl md:text-9xl font-thin tracking-tighter">
-                {Math.round(weather.temp)}°
-              </p>
-              <p className="text-white text-base md:text-lg">Feels like: {Math.round(weather.feels_like)}°</p>
-              <p className="text-white/60 text-sm md:text-base text-center">
-                {description.charAt(0).toUpperCase() + description.slice(1)}
-              </p>
+
+            {/* Quick stats pills */}
+            <div className="grid grid-cols-4 gap-2 mt-5">
+              {[
+                { label: "High", value: `${Math.round(fiveDayForecast[0]?.temp?.max)}°` },
+                { label: "Low", value: `${Math.round(fiveDayForecast[0]?.temp?.min)}°` },
+                { label: "Humidity", value: `${weather.humidity}%` },
+                { label: "Dew point", value: dewPoint !== null ? `${Math.round(dewPoint)}°` : "N/A" },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex flex-col items-center bg-white/10 rounded-full py-2.5 px-1">
+                  <span className="text-white/50 text-[10px] leading-tight">{label}</span>
+                  <span className="text-white font-medium text-sm leading-tight">{value}</span>
+                </div>
+              ))}
             </div>
-          </div>
 
-
-
-          <ul className="mt-4 grid grid-cols-2 gap-x-8 text-white text-sm leading-6 md:text-base">
-            <li className="datapoint flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {HighLowIcon && <HighLowIcon className="w-6 h-6 fill-white block shrink-0" />}
-                <span>High/Low:</span>
-              </div>
-              <span>
-                {Math.round(fiveDayForecast[0]?.temp?.max)}°/{Math.round(fiveDayForecast[0]?.temp?.min)}°
-              </span>
-            </li>
-
-            <li className="datapoint flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {DewPointIcon && <DewPointIcon className="w-6 h-6 fill-white" />}
-                <span>Dew Point:</span>
-              </div>
-              <span>
-                {dewPoint !== null ? `${Math.round(dewPoint)}°` : "N/A"}
-              </span>
-            </li>
-
-            <li className="datapoint border-none flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {HumidityIcon && <HumidityIcon className="w-6 h-6 fill-white" />}
-                <span>Humidity:</span>
-              </div>
-              <span>{weather.humidity}%</span>
-            </li>
-
-            <li className="datapoint border-none flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {UVIcon && <UVIcon className="w-6 h-6 fill-white" />}
-                <span>UV Index:</span>
-              </div>
-              <span>{uvi !== null ? uvi : "N/A"}</span>
-            </li>
-          </ul>
-
-          <h3 className="mt-8 font-bold text-white text-sm text-left uppercase">Hourly</h3>
-          <div className="relative w-full mt-3">
-
-            <div className="absolute left-0 top-0 h-full w-6 bg-gradient-to-r from-white/10 to-transparent pointer-events-none z-10 rounded-l" />
-            <div className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-white/10 to-transparent pointer-events-none z-10 rounded-r" />
-
-            {/* Scrollable Row with Drag Support */}
-            <div
-              ref={scrollRef}
-              className="flex overflow-x-auto hide-scrollbar gap-2 cursor-grab active:cursor-grabbing select-none"
-              onMouseDown={(e) => {
-                setIsDragging(true);
-                setStartX(e.pageX - scrollRef.current.offsetLeft);
-                setScrollLeft(scrollRef.current.scrollLeft);
-              }}
-              onMouseLeave={() => setIsDragging(false)}
-              onMouseUp={() => setIsDragging(false)}
-              onMouseMove={(e) => {
-                if (!isDragging) return;
-                e.preventDefault();
-                const x = e.pageX - scrollRef.current.offsetLeft;
-                const walk = (x - startX) * 1.5;
-                scrollRef.current.scrollLeft = scrollLeft - walk;
-              }}
-            >
-
-              {hourlyForecast.map((hour, index) => {
-                const displayHour = index === 0 ? "Now" : formatHour(hour.dt);
-                const IconComponent = mapWeatherIcon(hour.weather[0].icon);
-
-                return (
-                  <div
-                    key={index}
-                    className="flex flex-col items-center justify-between bg-white/15 w-18 p-2 gap-2 rounded text-white text-center text-sm flex-shrink-0"
-                  >
-                    <p>{displayHour}</p>
-                    {IconComponent && <IconComponent className="h-5 text-white" />}
-                    <p className="font-bold text-base">{Math.round(hour.temp)}°</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-8">
-            {fiveDayForecast.length > 0 && (
-              <div className="w-full text-white">
-                <h3 className="mt-8 font-bold text-white text-sm text-left uppercase">
-                  5-Day Forecast
-                </h3>
-
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 mt-4">
-                  {fiveDayForecast.map((day) => (
+            {/* Hourly forecast */}
+            <div className="mt-7">
+              <h3 className="text-white/50 text-xs uppercase tracking-widest mb-3">Hourly</h3>
+              <div
+                ref={scrollRef}
+                className="flex overflow-x-auto hide-scrollbar gap-2 cursor-grab active:cursor-grabbing select-none"
+                style={{
+                  maskImage: "linear-gradient(to right, black 85%, transparent 100%)",
+                  WebkitMaskImage: "linear-gradient(to right, black 85%, transparent 100%)",
+                }}
+                onScroll={updateScrollIndicator}
+                onMouseDown={(e) => {
+                  setIsDragging(true);
+                  setStartX(e.pageX - scrollRef.current.offsetLeft);
+                  setScrollLeft(scrollRef.current.scrollLeft);
+                }}
+                onMouseLeave={() => setIsDragging(false)}
+                onMouseUp={() => {
+                  setIsDragging(false);
+                  updateScrollIndicator();
+                }}
+                onMouseMove={(e) => {
+                  if (!isDragging) return;
+                  e.preventDefault();
+                  const x = e.pageX - scrollRef.current.offsetLeft;
+                  const walk = (x - startX) * 1.5;
+                  scrollRef.current.scrollLeft = scrollLeft - walk;
+                }}
+              >
+                {hourlyForecast.map((hour, index) => {
+                  const displayHour = index === 0 ? "Now" : formatHour(hour.dt);
+                  const IconComponent = mapWeatherIcon(hour.weather[0].icon);
+                  return (
                     <div
-                      key={day.dt}
-                      className="flex sm:flex-col items-center sm:items-center text-left sm:text-center w-full sm:w-1/5 bg-white/10 p-4 rounded gap-3"
+                      key={index}
+                      className={`flex flex-col items-center justify-between w-16 p-2.5 gap-1.5 rounded-xl text-white text-center flex-shrink-0 ${index === 0
+                        ? "bg-white/25 border border-white/20"
+                        : "bg-white/10"
+                        }`}
                     >
-                      {/* Date */}
-                      <div className="font-semibold min-w-[70px]">
-                        {new Date(day.dt * 1000).toLocaleDateString(undefined, {
-                          weekday: "short",
-                        })}
-                      </div>
+                      <p className={`text-xs ${index === 0 ? "text-white font-medium" : "text-white/60"}`}>
+                        {displayHour}
+                      </p>
+                      {IconComponent && <IconComponent className="h-5 text-white" />}
+                      <p className="font-semibold text-sm">{Math.round(hour.temp)}°</p>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Scroll indicator */}
+              <div
+                className="mt-2 h-[3px] w-full rounded-full"
+                style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+              >
+                <div
+                  className="h-full rounded-full transition-[margin,width] duration-100 ease-out"
+                  style={{
+                    width: `${scrollThumbWidth}%`,
+                    marginLeft: `${scrollThumbLeft}%`,
+                    backgroundColor: "rgba(255,255,255,0.45)",
+                  }}
+                />
+              </div>
+            </div>
 
-                      {/* Icon + Description */}
-                      <div className="flex items-center gap-4 sm:gap-2 sm:flex-col sm:items-center">
+            {/* Daily forecast */}
+            <div className="mt-7">
+              <h3 className="text-white/50 text-xs uppercase tracking-widest mb-1">Daily</h3>
+              {fiveDayForecast.length > 0 && (
+                <div className="flex flex-col">
+                  {fiveDayForecast.map((day, i) => {
+                    const span = weekMax - weekMin || 1;
+                    const leftPct = ((day.temp.min - weekMin) / span) * 100;
+                    const widthPct = ((day.temp.max - day.temp.min) / span) * 100;
+                    return (
+                      <div
+                        key={day.dt}
+                        className={`flex items-center gap-3 py-3 ${i < fiveDayForecast.length - 1 ? "border-b border-white/10" : ""
+                          }`}
+                      >
+                        <span className="w-9 shrink-0 text-white/60 text-sm">
+                          {new Date(day.dt * 1000).toLocaleDateString(undefined, { weekday: "short" })}
+                        </span>
                         <WeatherIcon
                           conditionId={day.weather[0].id}
-                          isNight={isNight}
-                          className="h-6 sm:h-8 w-6 sm:w-8 text-white"
+                          isNight={false}
+                          className="h-5 w-5 text-white shrink-0"
                         />
-                        <p className="text-sm leading-4">
-                          {day.weather[0].description.charAt(0).toUpperCase() +
-                            day.weather[0].description.slice(1)}
-                        </p>
+                        <span className="flex-1 text-white/60 text-xs truncate capitalize min-w-0">
+                          {day.weather[0].description}
+                        </span>
+                        <div className="relative w-16 h-[3px] bg-white/20 rounded-full overflow-hidden shrink-0">
+                          <div
+                            className="absolute top-0 h-full bg-white/70 rounded-full"
+                            style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                          />
+                        </div>
+                        <span className="text-white text-sm text-right shrink-0 w-14">
+                          {Math.round(day.temp.max)}°
+                          <span className="text-white/50">/{Math.round(day.temp.min)}°</span>
+                        </span>
                       </div>
-
-                      {/* Temps */}
-                      <div className="font-bold ml-auto text-right sm:ml-0 self-end sm:self-center">
-                        {Math.round(day.temp.max)}°<span className="font-normal">/</span>{Math.round(day.temp.min)}°
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </div>
-            )}
-          </div>
-
-
-          <div className="flex flex-col sm:flex-row gap-x-8 gap-y-10 mt-16 text-white text-sm leading-6 md:text-base md:leading-6">
-            {/* Air & Atmosphere */}
-            <div className="flex-1">
-              <h3 className="mt-0 font-bold text-white text-sm text-left uppercase">
-                Air &amp; Atmosphere
-              </h3>
-              <ul className="mt-4">
-                <li className="datapoint flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {WindIcon && <WindIcon className="w-6 h-6 fill-white block shrink-0" />}
-                    <span className="leading-6">Wind:</span>
-                  </div>
-                  <span className="leading-6 flex items-center whitespace-nowrap">
-                    {weather.wind} {units === "imperial" ? "mph" : "m/s"}{" "}
-                    {weather.windDeg ? `from ${weather.windDeg}°` : ""}
-                  </span>
-                </li>
-
-                <li className="datapoint flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {PressureIcon && <PressureIcon className="w-6 h-6 fill-white block shrink-0" />}
-                    <span className="leading-6">Pressure:</span>
-                  </div>
-                  <span className="leading-6 flex items-center whitespace-nowrap">
-                    {weather.pressure} hPa
-                  </span>
-                </li>
-
-                <li className="datapoint flex items-center justify-between border-none">
-                  <div className="flex items-center gap-3">
-                    {VisibilityIcon && <VisibilityIcon className="w-6 h-6 fill-white block shrink-0" />}
-                    <span className="leading-6">Visibility:</span>
-                  </div>
-                  <span className="leading-6 flex items-center whitespace-nowrap">
-                    {units === "imperial"
-                      ? `${(weather.visibility * 0.000621371).toFixed(1)} mi`
-                      : `${(weather.visibility / 1000).toFixed(1)} km`
-                    }
-                  </span>
-                </li>
-              </ul>
+              )}
             </div>
 
-            {/* Astronomy */}
-            <div className="flex-1">
-              <h3 className="mt-0 font-bold text-white text-sm text-left uppercase">
-                Astronomy
-              </h3>
-              <ul className="mt-4">
-                <li className="datapoint flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {SunriseIcon && <SunriseIcon className="w-6 h-6 fill-white block shrink-0" />}
-                    <span className="leading-6">Sunrise:</span>
-                  </div>
-                  <span className="leading-6 flex items-center whitespace-nowrap">
+            {/* Bottom cards: Air & Wind + Sun & Moon */}
+            <div className="grid grid-cols-2 gap-3 mt-7">
+
+              {/* Air & Wind */}
+              <div className="bg-white/10 rounded-2xl p-4 flex flex-col gap-3">
+                <h3 className="text-white/50 text-[10px] uppercase tracking-widest">Air & Wind</h3>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/50 text-xs flex items-center gap-1.5">
+                    {WindIcon && <WindIcon className="w-4 h-4 fill-white/60 shrink-0" />}
+                    Wind
+                  </span>
+                  <span className="text-white text-xs text-right">
+                    {weather.wind?.toFixed(1)}{" "}
+                    {units === "imperial" ? "mph" : "m/s"}{" "}
+                    {degreesToCardinal(weather.windDeg)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/50 text-xs flex items-center gap-1.5">
+                    {PressureIcon && <PressureIcon className="w-4 h-4 fill-white/60 shrink-0" />}
+                    Pressure
+                  </span>
+                  <span className="text-white text-xs">{weather.pressure} hPa</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/50 text-xs flex items-center gap-1.5">
+                    {VisibilityIcon && <VisibilityIcon className="w-4 h-4 fill-white/60 shrink-0" />}
+                    Visibility
+                  </span>
+                  <span className="text-white text-xs">
+                    {units === "imperial"
+                      ? `${(weather.visibility * 0.000621371).toFixed(1)} mi`
+                      : `${(weather.visibility / 1000).toFixed(1)} km`}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/50 text-xs flex items-center gap-1.5">
+                    {UVIcon && <UVIcon className="w-4 h-4 fill-white/60 shrink-0" />}
+                    UV Index
+                  </span>
+                  <span className="text-white text-xs">{uvi !== null ? uvi : "N/A"}</span>
+                </div>
+              </div>
+
+              {/* Sun & Moon */}
+              <div className="bg-white/10 rounded-2xl p-4 flex flex-col gap-3">
+                <h3 className="text-white/50 text-[10px] uppercase tracking-widest">Sun & Moon</h3>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/50 text-xs flex items-center gap-1.5">
+                    {SunriseIcon && <SunriseIcon className="w-4 h-4 fill-white/60 shrink-0" />}
+                    Sunrise
+                  </span>
+                  <span className="text-white text-xs">
                     {new Date(weather.sunrise * 1000).toLocaleTimeString([], {
                       hour: "numeric",
                       minute: "2-digit",
                       hour12: true,
                     })}
                   </span>
-                </li>
-
-                <li className="datapoint flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {SunsetIcon && <SunsetIcon className="w-6 h-6 fill-white block shrink-0" />}
-                    <span className="leading-6">Sunset:</span>
-                  </div>
-                  <span className="leading-6 flex items-center whitespace-nowrap">
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/50 text-xs flex items-center gap-1.5">
+                    {SunsetIcon && <SunsetIcon className="w-4 h-4 fill-white/60 shrink-0" />}
+                    Sunset
+                  </span>
+                  <span className="text-white text-xs">
                     {new Date(weather.sunset * 1000).toLocaleTimeString([], {
                       hour: "numeric",
                       minute: "2-digit",
                       hour12: true,
                     })}
                   </span>
-                </li>
+                </div>
+                {/* Moon phase — emphasized row */}
+                <div className="flex justify-between items-center pt-2 border-t border-white/10 mt-auto">
+                  <span className="text-white/60 text-xs flex items-center gap-1.5">
+                    {MoonIcon && <MoonIcon className="w-[22px] h-[22px] fill-white/80 shrink-0" />}
+                    Moon
+                  </span>
+                  <span className="text-white text-xs font-medium">{moonLabel}</span>
+                </div>
+              </div>
 
-                <MoonPhase moonPhase={weather?.moon_phase} />
-              </ul>
             </div>
+
+            <footer className="p-4 mt-8 mb-4 flex flex-col items-center gap-2">
+              <p className="text-white/40 text-xs text-center">
+                Built by{" "}
+                <a href="https://alissa.dev/" className="decoration-none hover:underline hover:decoration-solid">
+                  Alissa Bengtson
+                </a>
+                {" "}·{" "}
+                Weather condition icons by <a
+                  href="https://www.freepik.com/author/macrovector"
+                  className="decoration-none hover:underline hover:decoration-solid"
+                >
+                  macrovector
+                </a>
+              </p>
+            </footer>
+
           </div>
+        )}
 
-          <footer className="p-4 mt-10">
-            <p className="text-white text-sm text-center">Built by <a href="https://alissa.dev/">Alissa Bengtson</a></p>
-          </footer>
-
-        </div>
-      )}
-
+      </div>
     </div>
   );
 }

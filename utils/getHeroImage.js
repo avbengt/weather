@@ -18,7 +18,7 @@ export function getHeroImage(conditionId, iconCode, windSpeed = 0) {
         return "tornado.png";
     } else if (conditionId >= 700 && conditionId < 800) {
         return "atmosphere.png"; // haze, fog, etc.
-    } else if (conditionId === 804) {
+    } else if (conditionId === 803 || conditionId === 804) {
         return "cloudy.png"; // overcast
     } else if (conditionId > 800 && conditionId < 900) {
         return isNight ? "clouds-night.png" : "clouds-day.png";

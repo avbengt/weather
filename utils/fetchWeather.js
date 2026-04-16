@@ -19,7 +19,7 @@ export default async function fetchWeather(locationData, units = "imperial") {
 
     return {
       current: oneCallData.current,
-      dailyForecast: oneCallData.daily?.slice(1, 6) || [],
+      dailyForecast: oneCallData.daily?.slice(1, 8) || [],
       hourlyForecast: oneCallData.hourly?.slice(0, 12) || [],
       dewPoint: oneCallData.current?.dew_point || null,
       uvi: oneCallData.current?.uvi || null,

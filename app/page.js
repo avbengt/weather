@@ -4,10 +4,10 @@ import { useState, useCallback } from "react";
 import WeatherSearch from "@/components/WeatherSearch";
 
 export default function Home() {
-  const [bgStyle, setBgStyle] = useState({ backgroundImage: "linear-gradient(to bottom, #0a0a1a, #0d1b4b, #1a237e)" });
+  const [bgStyle, setBgStyle] = useState({ backgroundColor: "#0a0a1a", backgroundImage: "linear-gradient(to bottom, #0a0a1a, #0d1b4b, #1a237e)" });
 
   const handleGradientChange = useCallback((gradientData) => {
-    setBgStyle({ backgroundImage: gradientData.backgroundImage });
+    setBgStyle({ backgroundColor: "#0a0a1a", backgroundImage: gradientData.backgroundImage });
   }, []);
 
   return (

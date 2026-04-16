@@ -13,6 +13,7 @@ export default function Home() {
   return (
     <div
       className="relative min-h-dvh overflow-x-hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div
         className="fixed inset-0 z-0 pointer-events-none will-change-transform transform-gpu transition-all duration-700"

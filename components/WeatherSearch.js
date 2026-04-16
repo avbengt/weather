@@ -695,10 +695,10 @@ export default function WeatherSearch({ onGradientChange }) {
                 {/* Moon phase — emphasized row */}
                 <div className="flex justify-between items-center pt-2 border-t border-white/10 mt-auto">
                   <span className="text-white/60 text-xs flex items-center gap-1.5">
-                    {MoonIcon && <MoonIcon className="w-[22px] h-[22px] fill-white/80 shrink-0" />}
+                    {MoonIcon && <MoonIcon className="w-4 h-4 fill-white/80 shrink-0" />}
                     Moon
                   </span>
-                  <span className="text-white text-xs font-medium">{moonLabel}</span>
+                  <span className="text-white text-[13px] font-medium whitespace-nowrap">{moonLabel}</span>
                 </div>
               </div>
 

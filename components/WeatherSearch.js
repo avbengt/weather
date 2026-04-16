@@ -242,38 +242,38 @@ export default function WeatherSearch({ onGradientChange }) {
         );
 
         if (!googleRes.ok) {
-        console.warn("Geocoding service unavailable, using coordinates only");
-      } else {
-        const googleData = await googleRes.json();
+          console.warn("Geocoding service unavailable, using coordinates only");
+        } else {
+          const googleData = await googleRes.json();
 
-        if (googleData.results && googleData.results.length > 0) {
-          const components = googleData.results[0].address_components;
+          if (googleData.results && googleData.results.length > 0) {
+            const components = googleData.results[0].address_components;
 
-          const cityComponent =
-            components.find(c => c.types.includes("postal_town")) ||
-            components.find(c => c.types.includes("sublocality_level_1")) ||
-            components.find(c => c.types.includes("locality")) ||
-            components.find(c => c.types.includes("neighborhood"));
+            const cityComponent =
+              components.find(c => c.types.includes("postal_town")) ||
+              components.find(c => c.types.includes("sublocality_level_1")) ||
+              components.find(c => c.types.includes("locality")) ||
+              components.find(c => c.types.includes("neighborhood"));
 
-          const stateComponent = components.find(c =>
-            c.types.includes("administrative_area_level_1")
-          );
-          const countryComponent = components.find(c =>
-            c.types.includes("country")
-          );
-          const zipComponent = components.find(c =>
-            c.types.includes("postal_code")
-          );
+            const stateComponent = components.find(c =>
+              c.types.includes("administrative_area_level_1")
+            );
+            const countryComponent = components.find(c =>
+              c.types.includes("country")
+            );
+            const zipComponent = components.find(c =>
+              c.types.includes("postal_code")
+            );
 
-          cityName = cityComponent?.long_name || "";
-          stateName = stateComponent?.short_name || "";
-          countryName = countryComponent?.short_name || "US";
-          zip = zipComponent?.long_name || "";
+            cityName = cityComponent?.long_name || "";
+            stateName = stateComponent?.short_name || "";
+            countryName = countryComponent?.short_name || "US";
+            zip = zipComponent?.long_name || "";
+          }
         }
+      } catch (error) {
+        console.error("Google reverse geocoding failed:", error);
       }
-    } catch (error) {
-      console.error("Google reverse geocoding failed:", error);
-    }
     }
 
     if (!inputFocused) {
@@ -707,12 +707,12 @@ export default function WeatherSearch({ onGradientChange }) {
             <footer className="p-4 mt-8 mb-4 flex flex-col items-center gap-2">
               <p className="text-white/40 text-xs text-center">
                 Built by{" "}
-                <a href="https://alissa.dev/" className="decoration-none hover:underline hover:decoration-solid">
+                <a href="https://alissa.dev/" target="_blank" className="decoration-none hover:underline hover:decoration-solid">
                   Alissa Bengtson
                 </a>
                 {" "}·{" "}
                 Weather condition icons by <a
-                  href="https://www.freepik.com/author/macrovector"
+                  href="https://www.freepik.com/author/macrovector" target="_blank"
                   className="decoration-none hover:underline hover:decoration-solid"
                 >
                   macrovector

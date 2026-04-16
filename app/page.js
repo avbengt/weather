@@ -1,24 +1,34 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect } from "react";
 import WeatherSearch from "@/components/WeatherSearch";
+import { getInitialGradient } from "@/utils/getInitialGradient";
 
 export default function Home() {
-  const [bgStyle, setBgStyle] = useState({ backgroundColor: "#0a0a1a", backgroundImage: "linear-gradient(to bottom, #0a0a1a, #0d1b4b, #1a237e)" });
+  const [bgStyle, setBgStyle] = useState({ backgroundColor: "transparent", backgroundImage: "none" });
+
+  useLayoutEffect(() => {
+    const { gradient, topColor } = getInitialGradient(new Date().getHours());
+    setBgStyle({ backgroundColor: topColor, backgroundImage: gradient });
+  }, []);
 
   useEffect(() => {
-    const probe = () => {
-      const x = window.innerWidth / 2;
-      const y = window.innerHeight - 1;
-      const el = document.elementFromPoint(x, y);
-      if (el) {
-        const bg = getComputedStyle(el).backgroundColor;
-        console.log("[Safari bg probe] bottommost element:", el.tagName, el.className, "| background-color:", bg);
-      }
-    };
-    probe();
-    window.addEventListener("resize", probe);
-    return () => window.removeEventListener("resize", probe);
+    window.addEventListener('load', () => {
+      const elements = document.querySelectorAll('*');
+      let bottommost = null;
+      let maxBottom = 0;
+      elements.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        const style = window.getComputedStyle(el);
+        const bg = style.backgroundColor;
+        if (rect.bottom > maxBottom && bg !== 'rgba(0, 0, 0, 0)' &&
+            bg !== 'transparent') {
+          maxBottom = rect.bottom;
+          bottommost = { el: el.tagName + ' ' + el.className, bg };
+        }
+      });
+      console.log('Bottommost solid element:', bottommost);
+    });
   }, []);
 
   const handleGradientChange = useCallback((gradientData) => {

@@ -1,6 +1,5 @@
 import { Inter, Fjord_One, Dancing_Script } from "next/font/google";
 import "./globals.css";
-import { initialGradientScript } from "@/utils/getInitialGradient";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -38,10 +37,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: initialGradientScript }} />
-      </head>
-      <body className={`${inter.variable} ${fjordOne.variable} ${dancingScript.variable} antialiased transition-all duration-700 bg-fixed`}>
+<body className={`${inter.variable} ${fjordOne.variable} ${dancingScript.variable} antialiased transition-all duration-700 bg-fixed`}>
         {children}
       </body>
     </html>
